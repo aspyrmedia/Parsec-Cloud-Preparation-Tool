@@ -1,7 +1,3 @@
-
-# Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Confirm:$false
-# Install-Module -Name 'Carbon' -AllowClobber -Force -Confirm:$false
-# Import-Module 'Carbon'
 Function Test-RegistryValue {
   param(
     [Alias("PSPath")]
@@ -41,79 +37,49 @@ if ((Test-Path -Path $path\ParsecTemp ) -eq $true) {
 Else {
   New-Item -Path $path\ParsecTemp -ItemType directory | Out-Null
 }
-Unblock-File -Path .\*
-copy-Item .\* -Destination $path\ParsecTemp\ -Force -Recurse | Out-Null
-Start-Sleep -s 1
-Get-ChildItem -Path $path\ParsecTemp -Recurse | Unblock-File
-$path = [Environment]::GetFolderPath("Desktop")
+$ParsecDesktopTemp = "$path\ParsecTemp"
 $currentusersid = Get-LocalUser "$env:USERNAME" | Select-Object SID | ft -HideTableHeaders | Out-String | ForEach-Object { $_.Trim() }
 
+#Unblock-File -Path .\*
+#copy-Item .\* -Destination $path\ParsecTemp\ -Force -Recurse | Out-Null
+#Start-Sleep -s 1
+#Get-ChildItem -Path $path\ParsecTemp -Recurse | Unblock-File
+
+Write-Host "Creating Desktop Temp Folder"
+# Create ProgramData\ParsecLoader folder
 if ((Test-Path -Path $env:ProgramData\ParsecLoader) -eq $true) {} Else { New-Item -Path $env:ProgramData\ParsecLoader -ItemType directory | Out-Null }
-if ((Test-Path $env:ProgramData\ParsecLoader\parsecpublic.cer) -eq $true) {} Else { Move-Item -Path $path\ParsecTemp\PreInstall\parsecpublic.cer -Destination $env:ProgramData\ParsecLoader }
+# Create ParsecTemp subfolders folder in C Drive
+if ((Test-Path -Path $ParsecDesktopTemp\Apps) -eq $true) {} Else { New-Item -Path $ParsecDesktopTemp\Apps -ItemType directory | Out-Null }
+if ((Test-Path -Path $ParsecDesktopTemp\Drivers) -eq $true) {} Else { New-Item -Path $ParsecDesktopTemp\Drivers -ItemType Directory | Out-Null }
 
-# Create ParsecTemp folder in C Drive
-if ((Test-Path -Path C:\ParsecTemp) -eq $true) {} Else { New-Item -Path C:\ParsecTemp -ItemType directory | Out-Null }
-if ((Test-Path -Path C:\ParsecTemp\Apps) -eq $true) {} Else { New-Item -Path C:\ParsecTemp\Apps -ItemType directory | Out-Null }
-if ((Test-Path $env:ProgramData\ParsecLoader\TeamMachineSetup.ps1) -eq $true) {} Else { Move-Item -Path $path\ParsecTemp\PreInstall\TeamMachineSetup.ps1 -Destination $env:ProgramData\ParsecLoader }
-if ((Test-Path -Path C:\ParsecTemp\Drivers) -eq $true) {} Else { New-Item -Path C:\ParsecTemp\Drivers -ItemType Directory | Out-Null }
+Write-Host "Downloading TeamMachineSetup.ps1 and placing it in ProgramData\ParsecLoader"
+# Downlaod and locate TeamMachineSetup.ps1 into ProgramData\ParsecLoader folder. This file will poll system for UserData for team ID and associate during Windows Boot.
+(New-Object System.Net.WebClient).DownloadFile("https://github.com/aspyrmedia/Parsec-Cloud-Preparation-Tool/raw/master/PreInstall/TeamMachineSetup.ps1", "$ParsecDesktopTemp\TeamMachineSetup.ps1")
+if ((Test-Path $env:ProgramData\ParsecLoader\TeamMachineSetup.ps1) -eq $true) {} Else { Move-Item -Path $ParsecDesktopTemp\TeamMachineSetup.ps1 -Destination $env:ProgramData\ParsecLoader }
 
-# Disable IE Security
-Set-Itemproperty "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}" -name IsInstalled -value 0 -force | Out-Null
-Set-ItemProperty "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}" -Name IsInstalled -Value 0 -Force | Out-Null
-Stop-Process -Name Explorer -Force
-
-#download-files-S3
-(New-Object System.Net.WebClient).DownloadFile("https://builds.parsecgaming.com/package/parsec-windows.exe", "C:\ParsecTemp\Apps\parsec-windows.exe")
-(New-Object System.Net.WebClient).DownloadFile("https://builds.parsec.app/vdd/parsec-vdd-0.37.0.0.exe", "C:\ParsecTemp\Apps\parsec-vdd.exe")
+Write-Host "Downloading Parsec Binaries"
+# Primary, latest Parsec Client
+(New-Object System.Net.WebClient).DownloadFile("https://builds.parsecgaming.com/package/parsec-windows.exe", "$ParsecDesktopTemp\Apps\parsec-windows.exe")
+# Parsec Virtual Display Driver
+(New-Object System.Net.WebClient).DownloadFile("https://builds.parsec.app/vdd/parsec-vdd-0.37.0.0.exe", "$ParsecDesktopTemp\Apps\parsec-vdd.exe")
+# NEEDED? GPUUpdaterTool
 (New-Object System.Net.WebClient).DownloadFile("https://raw.githubusercontent.com/parsec-cloud/Cloud-GPU-Updater/master/GPUUpdaterTool.ps1", "$env:ProgramData\ParsecLoader\GPUUpdaterTool.ps1")
-Unblock-File -Path "$env:ProgramData\ParsecLoader\GPUUpdaterTool.ps1"
+Get-ChildItem -Path $env:ProgramData\ParsecLoader -Recurse | Unblock-File
+Get-ChildItem -Path $ParsecDesktopTemp -Recurse | Unblock-File
 
+Write-Host "Installing Windows Direct-Play and .Net Framework Core Windows Features"
+# Install Windows Features
 Install-WindowsFeature Direct-Play | Out-Null
 Install-WindowsFeature Net-Framework-Core | Out-Null
 
-#Sets all applications to force close on shutdown
-if (((Get-Item -Path "HKCU:\Control Panel\Desktop").GetValue("AutoEndTasks") -ne $null) -eq $true) {
-  Set-ItemProperty -path "HKCU:\Control Panel\Desktop" -Name "AutoEndTasks" -Value "1"
-}
-Else {
-  New-ItemProperty -path "HKCU:\Control Panel\Desktop" -Name "AutoEndTasks" -Value "1"
-}
-
-#disable new network Public/Private window, default Public
-if ((Test-RegistryValue -path HKLM:\SYSTEM\CurrentControlSet\Control\Network -Value NewNetworkWindowOff) -eq $true) {} Else { new-itemproperty -path HKLM:\SYSTEM\CurrentControlSet\Control\Network -name "NewNetworkWindowOff" | Out-Null }
-
-#disable logout start menu
-if ((Test-RegistryValue -Path HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Value StartMenuLogOff ) -eq $true) { Set-ItemProperty -Path HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name StartMenuLogOff -Value 1 | Out-Null } Else { New-ItemProperty -Path HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name StartMenuLogOff -Value 1 | Out-Null }
-
-#disable lock start menu
-if ((Test-Path -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System) -eq $true) {} Else { New-Item -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies -Name Software | Out-Null }
-if ((Test-RegistryValue -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System -Value DisableLockWorkstation) -eq $true) { Set-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System -Name DisableLockWorkstation -Value 1 | Out-Null } Else { New-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System -Name DisableLockWorkstation -Value 1 | Out-Null }
-
-#show hidden items
-set-itemproperty -path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name Hidden -Value 1 | Out-Null
-
-#show file extensions
-Set-itemproperty -path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -name HideFileExt -Value 0 | Out-Null
-
-#Enable Pointer Precision 
-Set-Itemproperty -Path 'HKCU:\Control Panel\Mouse' -Name MouseSpeed -Value 1 | Out-Null
-
-#enable Mouse Keys
-set-Itemproperty -Path 'HKCU:\Control Panel\Accessibility\MouseKeys' -Name Flags -Value 63 | Out-Null
-
-#set automatic time and timezone
-Set-ItemProperty -path HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\Parameters -Name Type -Value NTP | Out-Null
-Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\tzautoupdate -Name Start -Value 00000003 | Out-Null
-
-#Disables Server Manager opening on Startup
-Get-ScheduledTask -TaskName ServerManager | Disable-ScheduledTask | Out-Null
-
+Write-Host "Installing Parsec Agent"
 # Install Parsec Agent
-Start-Process "C:\ParsecTemp\Apps\parsec-windows.exe" -ArgumentList "/silent", "/shared" -wait
+Start-Process "$ParsecDesktopTemp\Apps\parsec-windows.exe" -ArgumentList "/silent", "/shared" -wait
 Start-Sleep -s 1
-Start-Process -FilePath "C:\Program Files\Parsec\parsecd.exe"
-Start-Sleep -s 1
+# Start-Process -FilePath "C:\Program Files\Parsec\parsecd.exe"
+# Start-Sleep -s 1
 
+Write-Host "Disabling Default Display Drivers"
 #Disable Devices
 Start-Process -FilePath "C:\Program Files\Parsec\vigem\10\x64\devcon.exe" -ArgumentList '/r disable "HDAUDIO\FUNC_01&VEN_10DE&DEV_0083&SUBSYS_10DE11A3*"'
 Get-PnpDevice | where { $_.friendlyname -like "Generic Non-PNP Monitor" -and $_.status -eq "OK" } | Disable-PnpDevice -confirm:$false
@@ -124,9 +90,15 @@ Start-Process -FilePath "C:\Program Files\Parsec\vigem\10\x64\devcon.exe" -Argum
 Start-Process -FilePath "C:\Program Files\Parsec\vigem\10\x64\devcon.exe" -ArgumentList '/r disable "PCI\VEN_1D0F&DEV_1111*"'
 Start-Process -FilePath "C:\Program Files\Parsec\vigem\10\x64\devcon.exe" -ArgumentList '/r disable "PCI\VEN_1AE0&DEV_A002*"'
 
-# Install Parsec Virtual Display driver
+Write-Host "Downloading, copying, and installing Parsec Public Certificate"
+# Copy Parsec Public certificate into the folder
+(New-Object System.Net.WebClient).DownloadFile("https://github.com/aspyrmedia/Parsec-Cloud-Preparation-Tool/raw/master/PreInstall/parsecpublic.cer", "$ParsecDesktopTemp\ParsecPublic.cer")
+if ((Test-Path $env:ProgramData\ParsecLoader\parsecpublic.cer) -eq $true) {} Else { Copy-Item -Path $ParsecDesktopTemp\ParsecPublic.cer -Destination $env:ProgramData\ParsecLoader }
 Import-Certificate -CertStoreLocation "Cert:\LocalMachine\TrustedPublisher" -FilePath "$env:ProgramData\ParsecLoader\parsecpublic.cer" | Out-Null
-Start-Process "C:\ParsecTemp\Apps\parsec-vdd.exe" -ArgumentList "/silent" 
+
+Write-Host "Installing Parsec Virtual Display Driver"
+# Install Parsec Virtual Display driver
+Start-Process "$ParsecDesktopTemp\Apps\parsec-vdd.exe" -ArgumentList "/silent" 
 $iterator = 0    
 do {
   Start-Sleep -s 2
@@ -136,18 +108,63 @@ Until (($null -ne ((Get-PnpDevice | Where-Object { $_.Name -eq "Parsec Virtual D
 if (Get-process -name parsec-vdd -ErrorAction SilentlyContinue) {
   Stop-Process -name parsec-vdd -Force
 }
-$configfile = Get-Content C:\ProgramData\Parsec\config.txt
+$configfile = Get-Content $env:ProgramData\Parsec\config.txt
 $configfile += "host_virtual_monitors = 1"
 $configfile += "host_privacy_mode = 1"
-$configfile | Out-File C:\ProgramData\Parsec\config.txt -Encoding ascii
+$configfile | Out-File $env:ProgramData\Parsec\config.txt -Encoding ascii
 
+Write-Host "Installing Windows Server 2019 XBox 360 Controller Driver"
 # Install XBox 360 Controller driver in Windows Server 2019
 if ((gwmi win32_operatingsystem | % caption) -like '*Windows Server 2019*') {
-        (New-Object System.Net.WebClient).DownloadFile("http://www.download.windowsupdate.com/msdownload/update/v3-19990518/cabpool/2060_8edb3031ef495d4e4247e51dcb11bef24d2c4da7.cab", "C:\ParsecTemp\Drivers\Xbox360_64Eng.cab")
-  if ((Test-Path -Path C:\ParsecTemp\Drivers\Xbox360_64Eng) -eq $true) {} Else { New-Item -Path C:\ParsecTemp\Drivers\Xbox360_64Eng -ItemType directory | Out-Null }
-  cmd.exe /c "C:\Windows\System32\expand.exe C:\ParsecTemp\Drivers\Xbox360_64Eng.cab -F:* C:\ParsecTemp\Drivers\Xbox360_64Eng" | Out-Null
-  cmd.exe /c '"C:\Program Files\Parsec\vigem\10\x64\devcon.exe" dp_add "C:\ParsecTemp\Drivers\Xbox360_64Eng\xusb21.inf"' | Out-Null
+        (New-Object System.Net.WebClient).DownloadFile("http://www.download.windowsupdate.com/msdownload/update/v3-19990518/cabpool/2060_8edb3031ef495d4e4247e51dcb11bef24d2c4da7.cab", "$ParsecDesktopTemp\Drivers\Xbox360_64Eng.cab")
+  if ((Test-Path -Path $ParsecDesktopTemp\Drivers\Xbox360_64Eng) -eq $true) {} Else { New-Item -Path $ParsecDesktopTemp\Drivers\Xbox360_64Eng -ItemType directory | Out-Null }
+  cmd.exe /c "C:\Windows\System32\expand.exe $ParsecDesktopTemp\Drivers\Xbox360_64Eng.cab -F:* $ParsecDesktopTemp\Drivers\Xbox360_64Eng" | Out-Null
+  cmd.exe /c "`"C:\Program Files\Parsec\vigem\10\x64\devcon.exe`" dp_add `"$ParsecDesktopTemp\Drivers\Xbox360_64Eng\xusb21.inf`"" | Out-Null
 }
+
+Write-Host "Final customization scripts"
+### Customization for Remote use
+# Disable IE Security
+Set-Itemproperty "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}" -name IsInstalled -value 0 -force | Out-Null
+Set-ItemProperty "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}" -Name IsInstalled -Value 0 -Force | Out-Null
+Stop-Process -Name Explorer -Force
+
+# Sets all applications to force close on shutdown
+if (((Get-Item -Path "HKCU:\Control Panel\Desktop").GetValue("AutoEndTasks") -ne $null) -eq $true) {
+  Set-ItemProperty -path "HKCU:\Control Panel\Desktop" -Name "AutoEndTasks" -Value "1"
+}
+Else {
+  New-ItemProperty -path "HKCU:\Control Panel\Desktop" -Name "AutoEndTasks" -Value "1"
+}
+
+# Disable new network Public/Private window, default Public
+if ((Test-RegistryValue -path HKLM:\SYSTEM\CurrentControlSet\Control\Network -Value NewNetworkWindowOff) -eq $true) {} Else { new-itemproperty -path HKLM:\SYSTEM\CurrentControlSet\Control\Network -name "NewNetworkWindowOff" | Out-Null }
+
+# Disable logout start menu
+if ((Test-RegistryValue -Path HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Value StartMenuLogOff ) -eq $true) { Set-ItemProperty -Path HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name StartMenuLogOff -Value 1 | Out-Null } Else { New-ItemProperty -Path HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name StartMenuLogOff -Value 1 | Out-Null }
+
+# Disable lock start menu
+if ((Test-Path -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System) -eq $true) {} Else { New-Item -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies -Name Software | Out-Null }
+if ((Test-RegistryValue -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System -Value DisableLockWorkstation) -eq $true) { Set-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System -Name DisableLockWorkstation -Value 1 | Out-Null } Else { New-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System -Name DisableLockWorkstation -Value 1 | Out-Null }
+
+# Show hidden items
+set-itemproperty -path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name Hidden -Value 1 | Out-Null
+
+# Show file extensions
+Set-itemproperty -path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -name HideFileExt -Value 0 | Out-Null
+
+# Enable Pointer Precision 
+Set-Itemproperty -Path 'HKCU:\Control Panel\Mouse' -Name MouseSpeed -Value 1 | Out-Null
+
+# Enable Mouse Keys
+set-Itemproperty -Path 'HKCU:\Control Panel\Accessibility\MouseKeys' -Name Flags -Value 63 | Out-Null
+
+# Set automatic time and timezone
+Set-ItemProperty -path HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\Parameters -Name Type -Value NTP | Out-Null
+Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\tzautoupdate -Name Start -Value 00000003 | Out-Null
+
+# Disables Server Manager opening on Startup
+Get-ScheduledTask -TaskName ServerManager | Disable-ScheduledTask | Out-Null
 
 # Installing VB Cable Audio Driver if required
 # $gputype = Get-PnpDevice | Where-Object { ($_.DeviceID -like 'PCI\VEN_10DE*' -or $_.DeviceID -like '*PCI\VEN_1002*') -and ($_.PNPClass -eq 'Display' -or $_.Name -like '*Video Controller') } | Select-Object InstanceID -ExpandProperty InstanceID
@@ -215,11 +232,12 @@ if ((gwmi win32_operatingsystem | % caption) -like '*Windows Server 2019*') {
 # StartupType Automatic
 # Start-Service -Name audiosrv
 
-#Cleanup
-Remove-Item -Path C:\ParsecTemp\Drivers -force -Recurse
-Remove-Item -Path $path\ParsecTemp -force -Recurse
-remove-item "$env:AppData\Microsoft\Windows\Recent\*" -Recurse -Force | Out-Null
+Write-Host "Cleaning up Temp folder"
+# Cleanup
+Remove-Item -Path $ParsecDesktopTemp -force -Recurse | Out-Null
+Remove-item "$env:AppData\Microsoft\Windows\Recent\*" -Recurse -Force | Out-Null
 
+Write-Host "Configuring on boot task to look at User Data for Parsec Team Data"
 # Attempts to read instance userdata and set up as Team Machine at startup
 $XML = @"
 <?xml version="1.0" encoding="UTF-16"?>
