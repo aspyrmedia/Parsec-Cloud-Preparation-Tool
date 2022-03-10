@@ -75,22 +75,21 @@ Install-WindowsFeature Net-Framework-Core | Out-Null
 
 Write-Host "Installing Parsec Agent"
 # Install Parsec Agent
-Start-Process "$ParsecDesktopTemp\Apps\parsec-windows.exe" -ArgumentList "/silent", "/shared" -wait
+Start-Process -FilePath "$ParsecDesktopTemp\Apps\parsec-windows.exe" -ArgumentList "/silent", "/shared" -NoNewWindow -Wait
 Start-Sleep -s 1
 # Start-Process -FilePath "C:\Program Files\Parsec\parsecd.exe"
 # Start-Sleep -s 1
-exit
 
 Write-Host "Disabling Default Display Drivers"
 #Disable Devices
-Start-Process -FilePath "C:\Program Files\Parsec\vigem\10\x64\devcon.exe" -ArgumentList '/r disable "HDAUDIO\FUNC_01&VEN_10DE&DEV_0083&SUBSYS_10DE11A3*"'
+Start-Process -FilePath "C:\Program Files\Parsec\vigem\10\x64\devcon.exe" -ArgumentList '/r disable "HDAUDIO\FUNC_01&VEN_10DE&DEV_0083&SUBSYS_10DE11A3*"' -NoNewWindow -Wait
 Get-PnpDevice | where { $_.friendlyname -like "Generic Non-PNP Monitor" -and $_.status -eq "OK" } | Disable-PnpDevice -confirm:$false
 Get-PnpDevice | where { $_.friendlyname -like "Microsoft Basic Display Adapter" -and $_.status -eq "OK" } | Disable-PnpDevice -confirm:$false
 Get-PnpDevice | where { $_.friendlyname -like "Google Graphics Array (GGA)" -and $_.status -eq "OK" } | Disable-PnpDevice -confirm:$false
 Get-PnpDevice | where { $_.friendlyname -like "Microsoft Hyper-V Video" -and $_.status -eq "OK" } | Disable-PnpDevice -confirm:$false
-Start-Process -FilePath "C:\Program Files\Parsec\vigem\10\x64\devcon.exe" -ArgumentList '/r disable "PCI\VEN_1013&DEV_00B8*"'
-Start-Process -FilePath "C:\Program Files\Parsec\vigem\10\x64\devcon.exe" -ArgumentList '/r disable "PCI\VEN_1D0F&DEV_1111*"'
-Start-Process -FilePath "C:\Program Files\Parsec\vigem\10\x64\devcon.exe" -ArgumentList '/r disable "PCI\VEN_1AE0&DEV_A002*"'
+Start-Process -FilePath "C:\Program Files\Parsec\vigem\10\x64\devcon.exe" -ArgumentList '/r disable "PCI\VEN_1013&DEV_00B8*"' -NoNewWindow -Wait
+Start-Process -FilePath "C:\Program Files\Parsec\vigem\10\x64\devcon.exe" -ArgumentList '/r disable "PCI\VEN_1D0F&DEV_1111*"' -NoNewWindow -Wait
+Start-Process -FilePath "C:\Program Files\Parsec\vigem\10\x64\devcon.exe" -ArgumentList '/r disable "PCI\VEN_1AE0&DEV_A002*"' -NoNewWindow -Wait
 
 Write-Host "Downloading, copying, and installing Parsec Public Certificate"
 # Copy Parsec Public certificate into the folder
@@ -100,7 +99,7 @@ Import-Certificate -CertStoreLocation "Cert:\LocalMachine\TrustedPublisher" -Fil
 
 Write-Host "Installing Parsec Virtual Display Driver"
 # Install Parsec Virtual Display driver
-Start-Process "$ParsecDesktopTemp\Apps\parsec-vdd.exe" -ArgumentList "/silent" 
+Start-Process "$ParsecDesktopTemp\Apps\parsec-vdd.exe" -ArgumentList "/S" -NoNewWindow -Wait
 $iterator = 0    
 do {
   Start-Sleep -s 2
@@ -120,10 +119,11 @@ Write-Host "Installing Windows Server 2019 XBox 360 Controller Driver"
 if ((gwmi win32_operatingsystem | % caption) -like '*Windows Server 2019*') {
   Invoke-WebRequest -Uri "http://www.download.windowsupdate.com/msdownload/update/v3-19990518/cabpool/2060_8edb3031ef495d4e4247e51dcb11bef24d2c4da7.cab" -OutFile "$ParsecDesktopTemp\Drivers\Xbox360_64Eng.cab"
   if ((Test-Path -Path $ParsecDesktopTemp\Drivers\Xbox360_64Eng) -eq $true) {} Else { New-Item -Path $ParsecDesktopTemp\Drivers\Xbox360_64Eng -ItemType directory | Out-Null }
-  cmd.exe /c "C:\Windows\System32\expand.exe $ParsecDesktopTemp\Drivers\Xbox360_64Eng.cab -F:* $ParsecDesktopTemp\Drivers\Xbox360_64Eng" | Out-Null
-  cmd.exe /c "`"C:\Program Files\Parsec\vigem\10\x64\devcon.exe`" dp_add `"$ParsecDesktopTemp\Drivers\Xbox360_64Eng\xusb21.inf`"" | Out-Null
+  # cmd.exe /c "C:\Windows\System32\expand.exe $ParsecDesktopTemp\Drivers\Xbox360_64Eng.cab -F:* $ParsecDesktopTemp\Drivers\Xbox360_64Eng" | Out-Null
+  # cmd.exe /c "`"C:\Program Files\Parsec\vigem\10\x64\devcon.exe`" dp_add `"$ParsecDesktopTemp\Drivers\Xbox360_64Eng\xusb21.inf`"" | Out-Null
+  Start-Process -FilePath "C:\Windows\System32\expand.exe" -ArgumentList "$ParsecDesktopTemp\Drivers\Xbox360_64Eng.cab", "-F:*", "$ParsecDesktopTemp\Drivers\Xbox360_64Eng" -NoNewWindow -Wait
+  Start-Process -FilePath "C:\Program Files\Parsec\vigem\10\x64\devcon.exe" -ArgumentList "dp_add", "$ParsecDesktopTemp\Drivers\Xbox360_64Eng\xusb21.inf" -NoNewWindow -Wait
 }
-
 Write-Host "Final customization scripts"
 ### Customization for Remote use
 # Disable IE Security
