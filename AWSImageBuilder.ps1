@@ -31,6 +31,7 @@ Function Test-RegistryValue {
   }
 }
 
+$ProgressPreference = 'SilentlyContinue'
 $path = [Environment]::GetFolderPath("Desktop")
 if ((Test-Path -Path $path\ParsecTemp ) -eq $true) {
 } 
@@ -39,8 +40,6 @@ Else {
 }
 $ParsecDesktopTemp = "$path\ParsecTemp"
 $currentusersid = Get-LocalUser "$env:USERNAME" | Select-Object SID | ft -HideTableHeaders | Out-String | ForEach-Object { $_.Trim() }
-WebClient myWebClient = new WebClient()
-#System.Net.WebClient
 
 #Unblock-File -Path .\*
 #copy-Item .\* -Destination $path\ParsecTemp\ -Force -Recurse | Out-Null
@@ -56,16 +55,16 @@ if ((Test-Path -Path $ParsecDesktopTemp\Drivers) -eq $true) {} Else { New-Item -
 
 Write-Host "Downloading TeamMachineSetup.ps1 and placing it in ProgramData\ParsecLoader"
 # Downlaod and locate TeamMachineSetup.ps1 into ProgramData\ParsecLoader folder. This file will poll system for UserData for team ID and associate during Windows Boot.
-myWebClient.DownloadFile("https://github.com/aspyrmedia/Parsec-Cloud-Preparation-Tool/raw/master/PreInstall/TeamMachineSetup.ps1", "$ParsecDesktopTemp\TeamMachineSetup.ps1")
+Invoke-WebRequest -Uri "https://github.com/aspyrmedia/Parsec-Cloud-Preparation-Tool/raw/master/PreInstall/TeamMachineSetup.ps1" -OutFile "$ParsecDesktopTemp\TeamMachineSetup.ps1"
 if ((Test-Path $env:ProgramData\ParsecLoader\TeamMachineSetup.ps1) -eq $true) {} Else { Move-Item -Path $ParsecDesktopTemp\TeamMachineSetup.ps1 -Destination $env:ProgramData\ParsecLoader }
 
 Write-Host "Downloading Parsec Binaries"
 # Primary, latest Parsec Client
-myWebClient.DownloadFile("https://builds.parsecgaming.com/package/parsec-windows.exe", "$ParsecDesktopTemp\Apps\parsec-windows.exe")
+Invoke-WebRequest -Uri "https://builds.parsecgaming.com/package/parsec-windows.exe" -OutFile "$ParsecDesktopTemp\Apps\parsec-windows.exe"
 # Parsec Virtual Display Driver
-myWebClient.DownloadFile("https://builds.parsec.app/vdd/parsec-vdd-0.37.0.0.exe", "$ParsecDesktopTemp\Apps\parsec-vdd.exe")
+Invoke-WebRequest -Uri "https://builds.parsec.app/vdd/parsec-vdd-0.37.0.0.exe" -OutFile "$ParsecDesktopTemp\Apps\parsec-vdd.exe"
 # NEEDED? GPUUpdaterTool
-myWebClient.DownloadFile("https://raw.githubusercontent.com/parsec-cloud/Cloud-GPU-Updater/master/GPUUpdaterTool.ps1", "$env:ProgramData\ParsecLoader\GPUUpdaterTool.ps1")
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/parsec-cloud/Cloud-GPU-Updater/master/GPUUpdaterTool.ps1" -OutFile "$env:ProgramData\ParsecLoader\GPUUpdaterTool.ps1"
 Get-ChildItem -Path $env:ProgramData\ParsecLoader -Recurse | Unblock-File
 Get-ChildItem -Path $ParsecDesktopTemp -Recurse | Unblock-File
 
@@ -95,7 +94,7 @@ Start-Process -FilePath "C:\Program Files\Parsec\vigem\10\x64\devcon.exe" -Argum
 
 Write-Host "Downloading, copying, and installing Parsec Public Certificate"
 # Copy Parsec Public certificate into the folder
-myWebClient.DownloadFile("https://github.com/aspyrmedia/Parsec-Cloud-Preparation-Tool/raw/master/PreInstall/parsecpublic.cer", "$ParsecDesktopTemp\ParsecPublic.cer")
+Invoke-WebRequest -Uri "https://github.com/aspyrmedia/Parsec-Cloud-Preparation-Tool/raw/master/PreInstall/parsecpublic.cer" -OutFile "$ParsecDesktopTemp\ParsecPublic.cer"
 if ((Test-Path $env:ProgramData\ParsecLoader\parsecpublic.cer) -eq $true) {} Else { Copy-Item -Path $ParsecDesktopTemp\ParsecPublic.cer -Destination $env:ProgramData\ParsecLoader }
 Import-Certificate -CertStoreLocation "Cert:\LocalMachine\TrustedPublisher" -FilePath "$env:ProgramData\ParsecLoader\parsecpublic.cer" | Out-Null
 
@@ -119,7 +118,7 @@ $configfile | Out-File $env:ProgramData\Parsec\config.txt -Encoding ascii
 Write-Host "Installing Windows Server 2019 XBox 360 Controller Driver"
 # Install XBox 360 Controller driver in Windows Server 2019
 if ((gwmi win32_operatingsystem | % caption) -like '*Windows Server 2019*') {
-  myWebClient.DownloadFile("http://www.download.windowsupdate.com/msdownload/update/v3-19990518/cabpool/2060_8edb3031ef495d4e4247e51dcb11bef24d2c4da7.cab", "$ParsecDesktopTemp\Drivers\Xbox360_64Eng.cab")
+  Invoke-WebRequest -Uri "http://www.download.windowsupdate.com/msdownload/update/v3-19990518/cabpool/2060_8edb3031ef495d4e4247e51dcb11bef24d2c4da7.cab" -OutFile "$ParsecDesktopTemp\Drivers\Xbox360_64Eng.cab"
   if ((Test-Path -Path $ParsecDesktopTemp\Drivers\Xbox360_64Eng) -eq $true) {} Else { New-Item -Path $ParsecDesktopTemp\Drivers\Xbox360_64Eng -ItemType directory | Out-Null }
   cmd.exe /c "C:\Windows\System32\expand.exe $ParsecDesktopTemp\Drivers\Xbox360_64Eng.cab -F:* $ParsecDesktopTemp\Drivers\Xbox360_64Eng" | Out-Null
   cmd.exe /c "`"C:\Program Files\Parsec\vigem\10\x64\devcon.exe`" dp_add `"$ParsecDesktopTemp\Drivers\Xbox360_64Eng\xusb21.inf`"" | Out-Null
