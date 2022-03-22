@@ -39,7 +39,7 @@ Else {
   New-Item -Path $path\ParsecTemp -ItemType directory | Out-Null
 }
 $ParsecDesktopTemp = "$path\ParsecTemp"
-$currentusersid = Get-LocalUser "$env:USERNAME" | Select-Object SID | ft -HideTableHeaders | Out-String | ForEach-Object { $_.Trim() }
+## $currentusersid = Get-LocalUser "$env:USERNAME" | Select-Object SID | ft -HideTableHeaders | Out-String | ForEach-Object { $_.Trim() }
 
 #Unblock-File -Path .\*
 #copy-Item .\* -Destination $path\ParsecTemp\ -Force -Recurse | Out-Null
