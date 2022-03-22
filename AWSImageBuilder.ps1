@@ -68,10 +68,10 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/parsec-cloud/Cloud-GPU
 Get-ChildItem -Path $env:ProgramData\ParsecLoader -Recurse | Unblock-File
 Get-ChildItem -Path $ParsecDesktopTemp -Recurse | Unblock-File
 
-Write-Host "Installing Windows Direct-Play and .Net Framework Core Windows Features"
+## Write-Host "Installing Windows Direct-Play and .Net Framework Core Windows Features"
 # Install Windows Features
-Install-WindowsFeature Direct-Play | Out-Null
-Install-WindowsFeature Net-Framework-Core | Out-Null
+## Install-WindowsFeature Direct-Play | Out-Null
+## Install-WindowsFeature Net-Framework-Core | Out-Null
 
 Write-Host "Installing Parsec Agent"
 # Install Parsec Agent
