@@ -1,3 +1,47 @@
+Function Set-RegistryItem {
+  param(
+    [Alias("PSPath")]
+    [Parameter(Position = 0, Mandatory = $true, ValueFromPipeline = $true, ValueFromRemainingArguments = $true)]
+    [string]$Path
+    ,
+    [Parameter(Position = 1, Mandatory = $true)]
+    [String]$Name
+    ,
+    [Parameter(Position = 2, Mandatory = $true)]
+    [String]$Value
+    ,
+    [Paramter(Position = 3, Mandatory = $false)]
+    [String]$Type
+    ,
+    [Switch]$PassThru
+    ,
+    [Switch]$Force
+  )
+
+  process {
+    If (-NOT (Test-Path $Path)) {
+      New-Item -Path $Path -Force | Out-Null
+    }  
+    # Now set the value
+    if ($Force) {
+      if ($Type.Length -gt 0) {
+        New-ItemProperty -Path $Path -Name $Name -Value $Value -PropertyType $Type -Force | Out-Null
+      }
+      else {
+        New-ItemProperty -Path $Path -Name $Name -Value $Value -Force | Out-Null
+      }
+    }
+    else {
+      if ($Type.Length -gt 0) {
+        New-ItemProperty -Path $Path -Name $Name -Value $Value -PropertyType $Type | Out-Null
+      }
+      else {
+        New-ItemProperty -Path $Path -Name $Name -Value $Value | Out-Null
+      }
+    }
+  }
+}
+
 Function Test-RegistryValue {
   param(
     [Alias("PSPath")]
@@ -106,8 +150,8 @@ do {
   $iterator++
 }
 Until (($null -ne ((Get-PnpDevice | Where-Object { $_.Name -eq "Parsec Virtual Display Adapter" }).DeviceID)) -or ($iterator -gt 7))
-if (Get-process -name parsec-vdd -ErrorAction SilentlyContinue) {
-  Stop-Process -name parsec-vdd -Force
+if (Get-process -Name parsec-vdd -ErrorAction SilentlyContinue) {
+  Stop-Process -Name parsec-vdd -Force
 }
 $configfile = Get-Content $env:ProgramData\Parsec\config.txt
 $configfile += "host_virtual_monitors = 1"
@@ -127,43 +171,54 @@ if ((gwmi win32_operatingsystem | % caption) -like '*Windows Server 2019*') {
 Write-Host "Final customization scripts"
 ### Customization for Remote use
 # Disable IE Security
-New-Itemproperty "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}" -name IsInstalled -value 0 -force | Out-Null
+$RegistryPath = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"
+New-Item 
+New-ItemProperty "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}" -Name IsInstalled -Value 0 -Force | Out-Null
 New-ItemProperty "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}" -Name IsInstalled -Value 0 -Force | Out-Null
 ## Stop-Process -Name Explorer -Force
 
 # Sets all applications to force close on shutdown
-if (((Get-Item -Path "HKCU:\Control Panel\Desktop").GetValue("AutoEndTasks") -ne $null) -eq $true) {
-  Set-ItemProperty -path "HKCU:\Control Panel\Desktop" -Name "AutoEndTasks" -Value "1" -Force
-}
-Else {
-  New-ItemProperty -path "HKCU:\Control Panel\Desktop" -Name "AutoEndTasks" -Value "1" -Force
-}
+Set-RegistryItem -Path "HKCU:\Control Panel\Desktop" -Name "AutoEndTasks" -Value "1" -Force
+# if (((Get-Item -Path "HKCU:\Control Panel\Desktop").GetValue("AutoEndTasks") -ne $null) -eq $true) {
+#   Set-ItemProperty -path "HKCU:\Control Panel\Desktop" -Name "AutoEndTasks" -Value "1" -Force
+# }
+# Else {
+#   New-ItemProperty -path "HKCU:\Control Panel\Desktop" -Name "AutoEndTasks" -Value "1" -Force
+# }
 
 # Disable new network Public/Private window, default Public
-if ((Test-RegistryValue -path HKLM:\SYSTEM\CurrentControlSet\Control\Network -Value NewNetworkWindowOff) -eq $true) {} Else { new-itemproperty -path HKLM:\SYSTEM\CurrentControlSet\Control\Network -name "NewNetworkWindowOff" -Force | Out-Null }
+Set-RegistryItem -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Network" -Name "NewNetworkWindowOff" -Value "" -Force
+# if ((Test-RegistryValue -path HKLM:\SYSTEM\CurrentControlSet\Control\Network -Value NewNetworkWindowOff) -eq $true) {} Else { New-ItemProperty -path HKLM:\SYSTEM\CurrentControlSet\Control\Network -Name "NewNetworkWindowOff" -Force | Out-Null }
 
 # Disable logout start menu
-if ((Test-RegistryValue -Path HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Value StartMenuLogOff ) -eq $true) { New-ItemProperty -Path HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name StartMenuLogOff -Value 1 -Force | Out-Null } Else { New-ItemProperty -Path HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name StartMenuLogOff -Value 1 -Force | Out-Null }
+Set-RegistryItem -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer" -Name "StartMenuLogOff" -Value "1" -Force
+# if ((Test-RegistryValue -Path HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Value StartMenuLogOff ) -eq $true) { New-ItemProperty -Path HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name StartMenuLogOff -Value 1 -Force | Out-Null } Else { New-ItemProperty -Path HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name StartMenuLogOff -Value 1 -Force | Out-Null }
 
 # Disable lock start menu
 if ((Test-Path -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System) -eq $true) {} Else { New-Item -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies -Name Software | Out-Null }
 if ((Test-RegistryValue -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System -Value DisableLockWorkstation) -eq $true) { New-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System -Name DisableLockWorkstation -Value 1 -Force | Out-Null } Else { New-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System -Name DisableLockWorkstation -Value 1 -Force | Out-Null }
 
 # Show hidden items
-New-itemproperty -path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name Hidden -Value 1 -Force | Out-Null
+Set-RegistryItem -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "Hidden" -Value 1 -Force
+# New-ItemProperty -path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name Hidden -Value 1 -Force | Out-Null
 
 # Show file extensions
-New-itemproperty -path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -name HideFileExt -Value 0 -Force | Out-Null
+Set-RegistryItem -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "HideFileExt" -Value 0 -Force
+# New-ItemProperty -path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name HideFileExt -Value 0 -Force | Out-Null
 
 # Enable Pointer Precision 
-New-Itemproperty -Path 'HKCU:\Control Panel\Mouse' -Name MouseSpeed -Value 1 -Force | Out-Null
+Set-RegistryItem -Path "HKCU:\Control Panel\Mouse" -Name "MouseSpeed" -Value 1 -Force
+# New-ItemProperty -Path 'HKCU:\Control Panel\Mouse' -Name MouseSpeed -Value 1 -Force | Out-Null
 
 # Enable Mouse Keys
-New-Itemproperty -Path 'HKCU:\Control Panel\Accessibility\MouseKeys' -Name Flags -Value 63 -Force | Out-Null
+Set-RegistryItem -Path "HKCU:\Control Panel\Accessibility\MouseKeys" -Name "Flags" -Value 63 -Force
+# New-ItemProperty -Path 'HKCU:\Control Panel\Accessibility\MouseKeys' -Name Flags -Value 63 -Force | Out-Null
 
 # Set automatic time and timezone
-New-ItemProperty -path HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\Parameters -Name Type -Value NTP -Force | Out-Null
-New-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\tzautoupdate -Name Start -Value 00000003 -Force | Out-Null
+Set-RegistryItem -Path "HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\Parameters" -Name "Type" -Value "NTP" -Force
+Set-RegistryItem -Path "HKLM:\SYSTEM\CurrentControlSet\Services\tzautoupdate" -Name "Start" -Value 00000003 -Force
+# New-ItemProperty -path HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\Parameters -Name Type -Value NTP -Force | Out-Null
+# New-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\tzautoupdate -Name Start -Value 00000003 -Force | Out-Null
 
 # Disables Server Manager opening on Startup
 Get-ScheduledTask -TaskName ServerManager | Disable-ScheduledTask | Out-Null
@@ -236,7 +291,7 @@ Get-ScheduledTask -TaskName ServerManager | Disable-ScheduledTask | Out-Null
 
 Write-Host "Cleaning up Temp folder"
 # Cleanup
-Remove-Item -Path $ParsecDesktopTemp -force -Recurse | Out-Null
+Remove-Item -Path $ParsecDesktopTemp -Force -Recurse | Out-Null
 ## Remove-item "$env:AppData\Microsoft\Windows\Recent\*" -Recurse -Force | Out-Null
 
 Write-Host "Configuring on boot task to look at User Data for Parsec Team Data"
