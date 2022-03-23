@@ -7,7 +7,7 @@ Function Set-RegistryItem {
     [Parameter(Position = 1, Mandatory = $true)]
     [String]$Name
     ,
-    [Parameter(Position = 2, Mandatory = $true)]
+    [Parameter(Position = 2, Mandatory = $false)]
     [String]$Value
     ,
     [Parameter(Position = 3, Mandatory = $false)]
@@ -185,7 +185,7 @@ Set-RegistryItem -Path "HKCU:\Control Panel\Desktop" -Name "AutoEndTasks" -Value
 # }
 
 # Disable new network Public/Private window, default Public
-Set-RegistryItem -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Network" -Name "NewNetworkWindowOff" -Value "" -Force
+Set-RegistryItem -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Network" -Name "NewNetworkWindowOff" -Force
 # if ((Test-RegistryValue -path HKLM:\SYSTEM\CurrentControlSet\Control\Network -Value NewNetworkWindowOff) -eq $true) {} Else { New-ItemProperty -path HKLM:\SYSTEM\CurrentControlSet\Control\Network -Name "NewNetworkWindowOff" -Force | Out-Null }
 
 # Disable logout start menu
