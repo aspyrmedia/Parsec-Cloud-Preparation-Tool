@@ -10,7 +10,7 @@ Function Set-RegistryItem {
     [Parameter(Position = 2, Mandatory = $true)]
     [String]$Value
     ,
-    [Paramter(Position = 3, Mandatory = $false)]
+    [Parameter(Position = 3, Mandatory = $false)]
     [String]$Type
     ,
     [Switch]$PassThru
