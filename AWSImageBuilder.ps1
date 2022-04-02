@@ -57,7 +57,7 @@ Function Test-RegistryValue {
   process {
     if (Test-Path $Path) {
       $Key = Get-Item -LiteralPath $Path
-      if ($Key.GetValue($Value, $null) -ne $null) {
+      if ($null -ne $Key.GetValue($Value, $null)) {
         if ($PassThru) {
           Get-ItemProperty $Path $Value
         }
@@ -114,7 +114,7 @@ Get-ChildItem -Path $ParsecDesktopTemp -Recurse | Unblock-File
 
 ## Write-Host "Installing Windows Direct-Play and .Net Framework Core Windows Features"
 # Install Windows Features
-## Install-WindowsFeature Direct-Play | Out-Null
+Install-WindowsFeature Direct-Play | Out-Null
 ## Install-WindowsFeature Net-Framework-Core | Out-Null
 
 Write-Host "Installing Parsec Agent"
@@ -127,10 +127,10 @@ Start-Sleep -s 1
 Write-Host "Disabling Default Display Drivers"
 #Disable Devices
 Start-Process -FilePath "C:\Program Files\Parsec\vigem\10\x64\devcon.exe" -ArgumentList '/r disable "HDAUDIO\FUNC_01&VEN_10DE&DEV_0083&SUBSYS_10DE11A3*"' -NoNewWindow -Wait
-Get-PnpDevice | where { $_.friendlyname -like "Generic Non-PNP Monitor" -and $_.status -eq "OK" } | Disable-PnpDevice -confirm:$false
-Get-PnpDevice | where { $_.friendlyname -like "Microsoft Basic Display Adapter" -and $_.status -eq "OK" } | Disable-PnpDevice -confirm:$false
-Get-PnpDevice | where { $_.friendlyname -like "Google Graphics Array (GGA)" -and $_.status -eq "OK" } | Disable-PnpDevice -confirm:$false
-Get-PnpDevice | where { $_.friendlyname -like "Microsoft Hyper-V Video" -and $_.status -eq "OK" } | Disable-PnpDevice -confirm:$false
+Get-PnpDevice | Where-Object { $_.friendlyname -like "Generic Non-PNP Monitor" -and $_.status -eq "OK" } | Disable-PnpDevice -confirm:$false
+Get-PnpDevice | Where-Object { $_.friendlyname -like "Microsoft Basic Display Adapter" -and $_.status -eq "OK" } | Disable-PnpDevice -confirm:$false
+Get-PnpDevice | Where-Object { $_.friendlyname -like "Google Graphics Array (GGA)" -and $_.status -eq "OK" } | Disable-PnpDevice -confirm:$false
+Get-PnpDevice | Where-Object { $_.friendlyname -like "Microsoft Hyper-V Video" -and $_.status -eq "OK" } | Disable-PnpDevice -confirm:$false
 Start-Process -FilePath "C:\Program Files\Parsec\vigem\10\x64\devcon.exe" -ArgumentList '/r disable "PCI\VEN_1013&DEV_00B8*"' -NoNewWindow -Wait
 Start-Process -FilePath "C:\Program Files\Parsec\vigem\10\x64\devcon.exe" -ArgumentList '/r disable "PCI\VEN_1D0F&DEV_1111*"' -NoNewWindow -Wait
 Start-Process -FilePath "C:\Program Files\Parsec\vigem\10\x64\devcon.exe" -ArgumentList '/r disable "PCI\VEN_1AE0&DEV_A002*"' -NoNewWindow -Wait
@@ -160,7 +160,7 @@ $configfile | Out-File $env:ProgramData\Parsec\config.txt -Encoding ascii
 
 Write-Host "Installing Windows Server 2019 XBox 360 Controller Driver"
 # Install XBox 360 Controller driver in Windows Server 2019
-if ((gwmi win32_operatingsystem | % caption) -like '*Windows Server 2019*') {
+if ((Get-WmiObject win32_operatingsystem | ForEach-Object caption) -like '*Windows Server 2019*') {
   Invoke-WebRequest -Uri "http://www.download.windowsupdate.com/msdownload/update/v3-19990518/cabpool/2060_8edb3031ef495d4e4247e51dcb11bef24d2c4da7.cab" -OutFile "$ParsecDesktopTemp\Drivers\Xbox360_64Eng.cab"
   if ((Test-Path -Path $ParsecDesktopTemp\Drivers\Xbox360_64Eng) -eq $true) {} Else { New-Item -Path $ParsecDesktopTemp\Drivers\Xbox360_64Eng -ItemType directory | Out-Null }
   # cmd.exe /c "C:\Windows\System32\expand.exe $ParsecDesktopTemp\Drivers\Xbox360_64Eng.cab -F:* $ParsecDesktopTemp\Drivers\Xbox360_64Eng" | Out-Null
@@ -346,6 +346,6 @@ try {
   Unregister-ScheduledTask -TaskName "Setup Team Machine" -Confirm:$false
 }
 catch {}
-$action = New-ScheduledTaskAction -Execute 'C:\WINDOWS\system32\WindowsPowerShell\v1.0\powershell.exe' -Argument '-file %programdata%\ParsecLoader\TeamMachineSetup.ps1'
-$trigger = New-ScheduledTaskTrigger -AtStartup
+# $action = New-ScheduledTaskAction -Execute 'C:\WINDOWS\system32\WindowsPowerShell\v1.0\powershell.exe' -Argument '-file %programdata%\ParsecLoader\TeamMachineSetup.ps1'
+# $trigger = New-ScheduledTaskTrigger -AtStartup
 Register-ScheduledTask -XML $XML -TaskName "Setup Team Machine" | Out-Null
