@@ -77,6 +77,7 @@ Function Test-RegistryValue {
 
 $ProgressPreference = 'SilentlyContinue'
 $path = [Environment]::GetFolderPath("Desktop")
+$path = "C:"
 if ((Test-Path -Path $path\ParsecTemp ) -eq $true) {
 } 
 Else {
@@ -289,7 +290,7 @@ Get-ScheduledTask -TaskName ServerManager | Disable-ScheduledTask | Out-Null
 
 Write-Host "Cleaning up Temp folder"
 # Cleanup
-Remove-Item -Path $ParsecDesktopTemp -Force -Recurse | Out-Null
+#Remove-Item -Path $ParsecDesktopTemp -Force -Recurse | Out-Null
 ## Remove-item "$env:AppData\Microsoft\Windows\Recent\*" -Recurse -Force | Out-Null
 
 Write-Host "Configuring on boot task to look at User Data for Parsec Team Data"
